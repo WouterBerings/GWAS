@@ -1,0 +1,16 @@
+bcftools view -h large.vcf.gz | \
+awk '
+BEGIN { OFS="\t" }
+/^#CHROM/ {
+  for (i=10; i<=NF; i++) {
+    # Example: D5_BW_22050_C21_aligned.sorted.nd.bam
+    if (match($i, /^([A-Za-z0-9]{2}).*C([0-9]+)/, a)) {
+      $i = a[1] "_C" a[2]
+    }
+  }
+}
+{ print }
+' > new_header.txt
+bcftools reheader -h new_header.txt -o large_clean.vcf.gz large.vcf.gz
+bcftools index large_clean.vcf.gz
+bcftools query -l large_clean.vcf.gz | head
