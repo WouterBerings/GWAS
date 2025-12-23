@@ -1,1 +1,65 @@
+library(data.table)
+library(dplyr)
+library(ggplot2)
 
+### 1. Read scaffold lengths
+scaffolds <- fread(
+  "scaffold_lengths.txt",
+  col.names = c("scaffold", "length")
+)
+
+# Order scaffolds numerically (scaffold_1, scaffold_2, ...)
+scaffolds <- scaffolds %>%
+  mutate(scaffold_num = as.numeric(gsub("scaffold_", "", scaffold))) %>%
+  arrange(scaffold_num)
+
+# Compute cumulative starts and mids
+scaffolds <- scaffolds %>%
+  mutate(
+    chromStart = lag(cumsum(length), default = 0),
+    chromMid = chromStart + length / 2
+  )
+
+### 2. Read GEMMA results
+gwas <- fread("gemma_results.assoc.txt")
+
+gwas <- gwas %>%
+  rename(scaffold = chr) %>%
+  filter(!is.na(p_wald)) %>%
+  mutate(
+    p_wald = as.numeric(p_wald),
+    ps = as.numeric(ps)
+  )
+
+### 3. Join scaffold info
+gwas <- gwas %>%
+  left_join(scaffolds, by = "scaffold") %>%
+  mutate(pos_cum = ps + chromStart)
+
+### 4. Significance thresholds
+bonf <- 0.05 / nrow(gwas)
+bonf_log <- -log10(bonf)
+
+### 5. Manhattan plot
+ggplot(gwas, aes(x = pos_cum, y = -log10(p_wald))) +
+  geom_point(aes(color = factor(scaffold_num)), alpha = 0.6, size = 0.7) +
+  scale_x_continuous(
+    breaks = scaffolds$chromMid,
+    labels = scaffolds$scaffold_num
+  ) +
+  geom_hline(yintercept = bonf_log, linetype = "dashed", color = "blue") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "red") +
+  scale_color_manual(values = rep(c("grey30", "grey70"),
+                                  length.out = nrow(scaffolds))) +
+  theme_bw() +
+  labs(
+    title = "GWAS Manhattan Plot – Daphnia magna",
+    x = "Scaffold",
+    y = expression(-log[10](p))
+  ) +
+  theme(
+    legend.position = "none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  )
