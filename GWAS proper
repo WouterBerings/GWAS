@@ -1,68 +1,157 @@
-
 #!/bin/bash -l
 #SBATCH --cluster=genius
-#SBATCH --job-name gwas_merged
+#SBATCH --job-name gwas_merged_nocov
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=20
 #SBATCH --time=72:00:00
 #SBATCH -A lp_svbelleghem
-#SBATCH -o gwas_merged.%j.out
+#SBATCH -o gwas_merged_nocov.%j.out
 
-# --- Modules (match your original environment) ---
+set -euo pipefail
+
+############################
+# User-configurable inputs #
+############################
+VCF="Merged_clean.vcf.gz"
+PHENO_FILE="Phenotype.txt"      # Header must include: FID, IID, Phenotype
+PHENO_COL="Phenotype"           # Exact column header to use as phenotype
+
+# QC (optional): set APPLY_QC=true to filter before kinship/GWAS
+APPLY_QC=false
+MIND=0.10     # individual missingness threshold
+GENO=0.05     # variant missingness threshold
+MAF=0.01      # minor allele frequency threshold
+
+#####################
+# Environment setup #
+#####################
 module load Python/3.7.0-foss-2018a
 module load tabix/0.2.6-GCCcore-6.4.0
 module load PLINK/1.9
 
-# If you need bcftools plugins (not used directly below, kept for parity)
-export BCFTOOLS_PLUGINS=/data/leuven/385/vsc38531/bcftools/plugins
+# (Kept for parity with your environment, not used directly here)
+export BCFTOOLS_PLUGINS=/data/leuven/357/vsc35707/bcftools/plugins
 
-# --- Input files ---
-VCF="Merged_clean.vcf.gz"
-PHENO_FILE="Phenotype.txt"     # Columns: FID IID Phenotype
+# GEMMA environment
+source /data/leuven/357/vsc35707/miniconda3/etc/profile.d/conda.sh
+conda activate gemma
 
-# --- Output stems ---
-OUT_PREFIX="gwas_input_merged"
+#########################
+# 0) Prep output dirs   #
+#########################
+mkdir -p kinship_matrix gemma_results logs
 
-# --- 1) Convert VCF to PLINK bed, adding phenotype ---
-# Note: --pheno-name expects the exact header "Phenotype" in Phenotype.txt
+#############################################
+# 1) Convert VCF -> PLINK (base, no phenos) #
+#############################################
 plink \
   --vcf "${VCF}" \
-  --pheno "${PHENO_FILE}" \
-  --pheno-name Phenotype \
-  --allow-no-sex \
   --allow-extra-chr \
+  --allow-no-sex \
   --make-bed \
-  --out "${OUT_PREFIX}"
+  --out merged_base \
+  > logs/step1_plink_vcf_to_bed.log 2>&1
 
-# --- 2) (Optional) Missingness check on individuals ---
+##############################################################
+# 2) Build a keep list of samples with NON-missing phenotype #
+##############################################################
+#   - Reads FID/IID/PHENO_COL from Phenotype.txt
+#   - Skips NA/blank/-9 phenotypes
+awk -v phcol="${PHENO_COL}" 'BEGIN{FS=OFS="\t"}
+NR==1{
+  for(i=1;i<=NF;i++){
+    if($i=="FID") f=i
+    if($i=="IID") id=i
+    if($i==phcol) p=i
+  }
+  if(!f || !id || !p){
+    print "ERROR: Phenotype file must have FID, IID, and " phcol " headers." > "/dev/stderr"; exit 1
+  }
+  next
+}
+{
+  val=$p
+  gsub(/^[ \t]+|[ \t]+$/, "", val)
+  if(val!="" && val!="NA" && val!="-9") print $f, $id
+}' "${PHENO_FILE}" > keep_phenotyped.txt
+
+if [ ! -s keep_phenotyped.txt ]; then
+  echo "ERROR: No phenotyped samples found in ${PHENO_FILE} (column ${PHENO_COL})." >&2
+  exit 1
+fi
+
+#######################################################
+# 3) Subset to phenotyped samples, then add phenotype #
+#######################################################
+# Subset to the intersection of genotypes and valid phenotypes
 plink \
-  --bfile "${OUT_PREFIX}" \
+  --bfile merged_base \
+  --keep keep_phenotyped.txt \
+  --make-bed \
+  --allow-extra-chr \
+  --allow-no-sex \
+  --out merged_pheno_subset \
+  > logs/step3_plink_keep.log 2>&1
+
+# Add phenotype values into the .fam (column 6)
+plink \
+  --bfile merged_pheno_subset \
+  --pheno "${PHENO_FILE}" \
+  --pheno-name "${PHENO_COL}" \
+  --allow-extra-chr \
+  --allow-no-sex \
+  --make-bed \
+  --out gwas_input_merged \
+  > logs/step3b_plink_add_pheno.log 2>&1
+
+################################
+# 4) Missingness (diagnostics) #
+################################
+plink \
+  --bfile gwas_input_merged \
   --missing \
   --allow-extra-chr \
   --allow-no-sex \
-  --out missing_check
+  --out missing_check \
+  > logs/step4_missingness.log 2>&1
 
-# --- 3) Activate GEMMA environment ---
-source /data/leuven/385/vsc38531/miniconda3/etc/profile.d/conda.sh
-conda activate gemma
+##############################################
+# 5) Optional minimal QC before kinship/GWAS #
+##############################################
+QC_PREFIX="gwas_input_merged"
+if [ "${APPLY_QC}" = true ]; then
+  plink \
+    --bfile gwas_input_merged \
+    --mind ${MIND} \
+    --geno ${GENO} \
+    --maf ${MAF} \
+    --allow-extra-chr \
+    --allow-no-sex \
+    --make-bed \
+    --out gwas_input_merged_qc \
+    > logs/step5_qc.log 2>&1
+  QC_PREFIX="gwas_input_merged_qc"
+fi
 
-# --- 4) Kinship matrix (centered relatedness, -gk 1) ---
-mkdir -p kinship_matrix
+#################################
+# 6) Kinship on phenotyped set  #
+#################################
 gemma \
-  -bfile "${OUT_PREFIX}" \
+  -bfile "${QC_PREFIX}" \
   -gk 1 \
   -outdir kinship_matrix \
-  -o "${OUT_PREFIX}"
+  -o "${QC_PREFIX}" \
+  > logs/step6_gemma_gk.log 2>&1
 
-# This writes: kinship_matrix/${OUT_PREFIX}.cXX.txt
-
-# --- 5) GWAS using LMM (model 4) with kinship ---
-mkdir -p gemma_results
+############################################
+# 7) GEMMA LMM (no covariates)             #
+############################################
 gemma \
-  -bfile "${OUT_PREFIX}" \
-  -k "kinship_matrix/${OUT_PREFIX}.cXX.txt" \
+  -bfile "${QC_PREFIX}" \
+  -k "kinship_matrix/${QC_PREFIX}.cXX.txt" \
   -lmm 4 \
   -outdir gemma_results \
-  -o "gemma_lmm_results"
+  -o "gemma_lmm_results_nocov" \
+  > logs/step7_gemma_lmm.log 2>&1
 
-# Outputs in gemma_results/ include association statistics and logs.
+echo "Done. Results in gemma_results/, kinship in kinship_matrix/, logs in logs/."
