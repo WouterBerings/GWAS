@@ -14,7 +14,7 @@ module load tabix/0.2.6-GCCcore-6.4.0
 module load PLINK/1.9
 
 # If you need bcftools plugins (not used directly below, kept for parity)
-export BCFTOOLS_PLUGINS=/data/leuven/357/vsc35707/bcftools/plugins
+export BCFTOOLS_PLUGINS=/data/leuven/385/vsc38531/bcftools/plugins
 
 # --- Input files ---
 VCF="Merged_clean.vcf.gz"
@@ -43,7 +43,7 @@ plink \
   --out missing_check
 
 # --- 3) Activate GEMMA environment ---
-source /data/leuven/357/vsc35707/miniconda3/etc/profile.d/conda.sh
+source /data/leuven/385/vsc38531/miniconda3/etc/profile.d/conda.sh
 conda activate gemma
 
 # --- 4) Kinship matrix (centered relatedness, -gk 1) ---
