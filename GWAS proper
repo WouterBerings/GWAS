@@ -1,0 +1,68 @@
+
+#!/bin/bash -l
+#SBATCH --cluster=genius
+#SBATCH --job-name gwas_merged
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=20
+#SBATCH --time=72:00:00
+#SBATCH -A lp_svbelleghem
+#SBATCH -o gwas_merged.%j.out
+
+# --- Modules (match your original environment) ---
+module load Python/3.7.0-foss-2018a
+module load tabix/0.2.6-GCCcore-6.4.0
+module load PLINK/1.9
+
+# If you need bcftools plugins (not used directly below, kept for parity)
+export BCFTOOLS_PLUGINS=/data/leuven/357/vsc35707/bcftools/plugins
+
+# --- Input files ---
+VCF="Merged_clean.vcf.gz"
+PHENO_FILE="Phenotype.txt"     # Columns: FID IID Phenotype
+
+# --- Output stems ---
+OUT_PREFIX="gwas_input_merged"
+
+# --- 1) Convert VCF to PLINK bed, adding phenotype ---
+# Note: --pheno-name expects the exact header "Phenotype" in Phenotype.txt
+plink \
+  --vcf "${VCF}" \
+  --pheno "${PHENO_FILE}" \
+  --pheno-name Phenotype \
+  --allow-no-sex \
+  --allow-extra-chr \
+  --make-bed \
+  --out "${OUT_PREFIX}"
+
+# --- 2) (Optional) Missingness check on individuals ---
+plink \
+  --bfile "${OUT_PREFIX}" \
+  --missing \
+  --allow-extra-chr \
+  --allow-no-sex \
+  --out missing_check
+
+# --- 3) Activate GEMMA environment ---
+source /data/leuven/357/vsc35707/miniconda3/etc/profile.d/conda.sh
+conda activate gemma
+
+# --- 4) Kinship matrix (centered relatedness, -gk 1) ---
+mkdir -p kinship_matrix
+gemma \
+  -bfile "${OUT_PREFIX}" \
+  -gk 1 \
+  -outdir kinship_matrix \
+  -o "${OUT_PREFIX}"
+
+# This writes: kinship_matrix/${OUT_PREFIX}.cXX.txt
+
+# --- 5) GWAS using LMM (model 4) with kinship ---
+mkdir -p gemma_results
+gemma \
+  -bfile "${OUT_PREFIX}" \
+  -k "kinship_matrix/${OUT_PREFIX}.cXX.txt" \
+  -lmm 4 \
+  -outdir gemma_results \
+  -o "gemma_lmm_results"
+
+# Outputs in gemma_results/ include association statistics and logs.
