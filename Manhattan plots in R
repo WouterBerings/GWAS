@@ -21,7 +21,7 @@ scaffolds <- scaffolds %>%
   )
 
 ### 2. Read GEMMA results
-gwas <- fread("gemma_results.assoc.txt")
+gwas <- fread("gemma_lmm_results_nocov.assoc.txt")
 
 gwas <- gwas %>%
   rename(scaffold = chr) %>%
