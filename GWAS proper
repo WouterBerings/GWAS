@@ -7,12 +7,36 @@
 #SBATCH -A lp_svbelleghem
 #SBATCH -o gwas_merged_nocov.%j.out
 
+
+module load Python/3.13.1-GCCcore-14.2.0
+module load tabix/0.2.6-GCCcore-6.4.0
+export BCFTOOLS_PLUGINS=/data/leuven/385/vsc38531/bcftools/plugins
+VCF="Merged_clean"
+
+# This is not 100% necessary to do, but it does avoid a lot of headaches downstream
+# Sample names should be as simple as possible, with any underscores ("_") or complicated suffixes
+# Should EXACTLY match the phenotype data, same sample names and in the same order
+
+# Extract the header, modify sample names by removing suffix and underscores
+bcftools view -h $VCF.vcf.gz | awk '
+BEGIN {OFS="\t"}
+/^#CHROM/ {
+  for (i=10; i<=NF; i++) {
+    sub(".primDud.filtered.sorted.nd.bam", "", $i);  # Remove suffix (from mapping)
+    gsub("_", "", $i);  # Remove underscores in sample names
+  }
+}
+{print}
+' > new_header.txt
+
+# Reheader the VCF file with the cleaned sample names
+bcftools reheader -h new_header.txt -o clean_$VCF.vcf.gz $VCF.vcf.gz
 set -euo pipefail
 
 ############################
 # User-configurable inputs #
 ############################
-VCF="Merged_clean.vcf.gz"
+VCF="clean_Merged_clean.vcf.gz"
 PHENO_FILE="Phenotype.txt"      # Header must include: FID, IID, Phenotype
 PHENO_COL="Phenotype"           # Exact column header to use as phenotype
 
