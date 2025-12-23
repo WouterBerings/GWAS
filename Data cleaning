@@ -1,4 +1,4 @@
-bcftools view -h large.vcf.gz | \
+bcftools view -h Merged.vcf.gz | \
 awk '
 BEGIN { OFS="\t" }
 /^#CHROM/ {
@@ -11,6 +11,6 @@ BEGIN { OFS="\t" }
 }
 { print }
 ' > new_header.txt
-bcftools reheader -h new_header.txt -o large_clean.vcf.gz large.vcf.gz
-bcftools index large_clean.vcf.gz
-bcftools query -l large_clean.vcf.gz | head
+bcftools reheader -h new_header.txt -o Merged_clean.vcf.gz large.vcf.gz
+bcftools index Merged_clean.vcf.gz
+bcftools query -l Merged_clean.vcf.gz | head
