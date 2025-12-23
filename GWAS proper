@@ -28,9 +28,6 @@ MAF=0.01      # minor allele frequency threshold
 module load tabix/0.2.6-GCCcore-6.4.0
 module load PLINK/2.0.0-a.6.9-gfbf-2024a
 
-# (Kept for parity with your environment, not used directly here)
-export BCFTOOLS_PLUGINS=/data/leuven/385/vsc38531/bcftools/plugins
-
 # GEMMA environment
 source /data/leuven/385/vsc38531/miniconda3/etc/profile.d/conda.sh
 conda activate gemma
