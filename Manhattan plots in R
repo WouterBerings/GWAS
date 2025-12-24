@@ -3,10 +3,9 @@ library(dplyr)
 library(ggplot2)
 
 ### 1. Read scaffold lengths
-scaffolds <- fread(
-  "scaffold_lengths.txt",
-  col.names = c("scaffold", "length")
-)
+scaffolds <- fread("scaffold_lengths.txt")[, 1:2]
+setnames(scaffolds, c("scaffold", "length"))
+
 
 # Order scaffolds numerically (scaffold_1, scaffold_2, ...)
 scaffolds <- scaffolds %>%
