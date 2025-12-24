@@ -1,4 +1,14 @@
-#!/usr/bin/env Rscript
+#!/bin/bash -l
+set -euo pipefail
+
+#SBATCH --cluster=genius
+#SBATCH --job-name manhattan
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=20
+#SBATCH --time=7:00:00
+#SBATCH -A lp_svbelleghem
+#SBATCH -o manhattan.out
+module load R
 # -------------------------------
 # HPC-friendly Manhattan Plot for Daphnia magna
 # -------------------------------
@@ -11,7 +21,7 @@ suppressPackageStartupMessages({
 })
 
 # --- Parameters (edit as needed) ---
-gwas_file <- "gwas_imputed_clean_Belgium.assoc.txt"  # GEMMA output
+gwas_file <- "gemma_lmm_results_nocov.assoc.txt"  # GEMMA output
 scaffold_file <- "scaffold_lengths.txt"              # Scaffold lengths from VCF header
 output_png <- "manhattan_plot.png"                  # Output image
 downsample <- 1e5                                   # number of SNPs to plot; set NULL to plot all
