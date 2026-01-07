@@ -1,0 +1,15 @@
+#!/bin/bash -l
+#SBATCH --cluster=genius
+#SBATCH --job-name bgzip_vcf
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=20
+#SBATCH --time=1:00:00
+#SBATCH -A lp_svbelleghem
+#SBATCH -o bgzip.out
+
+module load tabix
+module load BCFtools
+
+gunzip Merged.vcf.gz
+bgzip Merged.vcf
+bcftools index -c Merged.vcf.gz > scaffold_lengths.txt
