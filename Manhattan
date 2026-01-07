@@ -9,10 +9,13 @@ set -euo pipefail
 #SBATCH -A lp_svbelleghem
 #SBATCH -o manhattan.out
 module load R
+Rscript manhattan_plot.R
+
+##The following is an Rscript and should be loaded that way in scratch
 # -------------------------------
 # HPC-friendly Manhattan Plot for Daphnia magna
 # -------------------------------
-Rscript << 'EOF'
+
 suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
@@ -92,7 +95,6 @@ ggplot(gwas_plot, aes(x = pos_cum, y = -log10(p_wald))) +
     plot.title = element_text(size = 16, face = "bold"),
     axis.title = element_text(size = 14)
   )
-cat("Manhattan plot written to:", output_png, "\n")
 dev.off()
-EOF
+
 
