@@ -92,6 +92,7 @@ ggplot(gwas_plot, aes(x = pos_cum, y = -log10(p_wald))) +
     plot.title = element_text(size = 16, face = "bold"),
     axis.title = element_text(size = 14)
   )
-
+cat("Manhattan plot written to:", output_png, "\n")
 dev.off()
+EOF
 
