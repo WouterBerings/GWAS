@@ -12,7 +12,7 @@ module load R
 # -------------------------------
 # HPC-friendly Manhattan Plot for Daphnia magna
 # -------------------------------
-
+Rscript << 'EOF'
 suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
