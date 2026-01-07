@@ -8,7 +8,7 @@ When running (can be performed without job) make sure to load modules.
 First line is set to stop the script if any command fails.
 Following is the job configuration. all SBATCH lines.
 
-Then current versions of tools are loaded (Marias script had some outdated once I believe).
+Then current versions of tools are loaded
 The input file is defined as Merged_clean.vcf.gz
 
 Next the sample names were cleaned once more (I left in a _ in the original names which GEMMA and PLINK can't handle) and replaced with a version without underscore.
