@@ -1,0 +1,82 @@
+library(rtracklayer)
+library(GenomicRanges)
+
+# ----------------------------
+# SETTINGS
+# ----------------------------
+gwas_file <- "gemma.assoc.txt"      # GEMMA output
+gff_file  <- "annotations.gff"      # Gene annotation
+output_file <- "gemma_annotated_sig.txt"
+pval_threshold <- 1e-5               # Only annotate SNPs with p < threshold
+
+# ----------------------------
+# LOAD GEMMA GWAS
+# ----------------------------
+gwas <- read.table(gwas_file, header = TRUE, stringsAsFactors = FALSE)
+colnames(gwas)[colnames(gwas) == "ps"] <- "pos"
+
+# Filter only SNPs below threshold
+sig_snps <- gwas[gwas$p_wald < pval_threshold, ]
+
+# If no SNPs pass threshold, stop
+if(nrow(sig_snps) == 0){
+  stop("No SNPs passed the p-value threshold.")
+}
+
+# Create GRanges for significant SNPs
+sig_gr <- GRanges(
+  seqnames = sig_snps$chr,
+  ranges = IRanges(start = sig_snps$pos, end = sig_snps$pos)
+)
+
+# ----------------------------
+# LOAD GFF
+# ----------------------------
+gff <- import(gff_file)
+genes <- gff[gff$type == "gene"]
+
+gene_names <- mcols(genes)$Name
+if (is.null(gene_names)) {
+  gene_names <- mcols(genes)$ID
+}
+mcols(genes)$gene_name <- gene_names
+
+# ----------------------------
+# FIND OVERLAPS
+# ----------------------------
+overlaps <- findOverlaps(sig_gr, genes)
+
+# Initialize columns
+sig_snps$gene <- NA
+sig_snps$distance_to_gene <- NA
+sig_snps$location <- NA
+
+# 1️⃣ Overlapping genes
+sig_snps$gene[queryHits(overlaps)] <- mcols(genes)$gene_name[subjectHits(overlaps)]
+sig_snps$distance_to_gene[queryHits(overlaps)] <- 0
+sig_snps$location[queryHits(overlaps)] <- "intragenic"
+
+# 2️⃣ Nearest gene for non-overlapping SNPs
+non_overlap_idx <- which(is.na(sig_snps$gene))
+nearest_hits <- nearest(sig_gr[non_overlap_idx], genes)
+nearest_genes <- genes[nearest_hits]
+
+distances <- distance(sig_gr[non_overlap_idx], nearest_genes)
+sig_snps$gene[non_overlap_idx] <- mcols(nearest_genes)$gene_name
+sig_snps$distance_to_gene[non_overlap_idx] <- distances
+
+snp_pos <- start(sig_gr[non_overlap_idx])
+gene_start <- start(nearest_genes)
+gene_end <- end(nearest_genes)
+sig_snps$location[non_overlap_idx] <- ifelse(snp_pos < gene_start, "upstream", "downstream")
+
+# ----------------------------
+# SAVE OUTPUT
+# ----------------------------
+write.table(sig_snps,
+            file = output_file,
+            sep = "\t",
+            quote = FALSE,
+            row.names = FALSE)
+
+cat("Annotation complete for significant SNPs. Output saved to:", output_file, "\n")
