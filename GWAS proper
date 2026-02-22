@@ -170,7 +170,7 @@ gemma \
   -k "kinship_matrix/${QC_PREFIX}.cXX.txt" \
   -lmm 4 \
   -outdir gemma_results \
-  -o "gemma_lmm_results_nocov" \
+  -o "gemma_results" \
   > logs/step7_gemma_lmm.log 2>&1
 
 echo "Done. Results in gemma_results/, kinship in kinship_matrix/, logs in logs/."
