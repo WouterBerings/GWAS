@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 })
 
 # --- Parameters (edit as needed) ---
-gwas_file <- "gemma_lmm_results_nocov.assoc.txt"  # GEMMA output
+gwas_file <- "gemma_results.assoc.txt"  # GEMMA output
 scaffold_file <- "scaffold_lengths.txt"              # Scaffold lengths from VCF header
 output_png <- "manhattan_plot.png"                  # Output image
 downsample <- 1e5                                   # number of SNPs to plot; set NULL to plot all
