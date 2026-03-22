@@ -2,7 +2,7 @@
 set -euo pipefail
 
 #########################
-# SLURM CONFIG (minimal)
+# SLURM CONFIG
 #########################
 #SBATCH --job-name=gwas_merged_nocov
 #SBATCH --nodes=1
@@ -18,9 +18,9 @@ set -euo pipefail
 module purge
 module load cluster/wice/batch
 module load BCFtools/1.15.1-GCC-11.3.0
-module load tabix/0.2.6-GCCcore-6.4.0
 module load PLINK/2.0.0-a.6.9-gfbf-2024a
 
+# GEMMA environment
 source /data/leuven/385/vsc38531/miniconda3/etc/profile.d/conda.sh
 conda activate gemma || { echo "ERROR: conda activate failed"; exit 1; }
 
@@ -31,7 +31,6 @@ VCF1="Merged_clean.vcf.gz"
 VCF_CLEAN="clean_Merged_clean.vcf.gz"
 PHENO_FILE="blup_output.txt"
 PHENO_COL="Phenotype"
-
 THREADS=20
 
 #########################
@@ -45,7 +44,7 @@ mkdir -p logs kinship_matrix gemma_results
 echo "[INFO] Starting job at $(date)"
 
 #########################
-# 0) CLEAN SAMPLE NAMES (SAFE)
+# 0) CLEAN SAMPLE NAMES
 #########################
 if [ ! -f "$VCF_CLEAN" ]; then
   echo "[INFO] Reheadering VCF..."
@@ -61,7 +60,9 @@ if [ ! -f "$VCF_CLEAN" ]; then
   ' > new_header.txt
 
   bcftools reheader -h new_header.txt -o "$VCF_CLEAN" "$VCF1"
-  tabix -p vcf "$VCF_CLEAN"
+
+  # ✅ WICE-compatible indexing (replaces tabix)
+  bcftools index -t "$VCF_CLEAN"
 fi
 
 #########################
@@ -126,10 +127,10 @@ awk '{print $1}' "$PHENO_FILE" | tail -n +2 | sort > pheno_samples.txt
 comm -23 pheno_samples.txt vcf_samples.txt > missing_in_vcf.txt
 comm -13 pheno_samples.txt vcf_samples.txt > missing_in_pheno.txt
 
-echo "[INFO] Missing in VCF:"
+echo "[INFO] Samples in phenotype but not in VCF:"
 wc -l missing_in_vcf.txt
 
-echo "[INFO] Missing in phenotype:"
+echo "[INFO] Samples in VCF but not in phenotype:"
 wc -l missing_in_pheno.txt
 
 #########################
