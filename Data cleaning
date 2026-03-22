@@ -7,6 +7,7 @@
 #SBATCH --time=00:10:00
 #SBATCH -A lp_svbelleghem
 
+module load bcftools
 bcftools view -h Merged.vcf.gz | \
 awk '
 BEGIN { OFS="\t" }
