@@ -61,7 +61,7 @@ if [ ! -f "$VCF_CLEAN" ]; then
 
   bcftools reheader -h new_header.txt -o "$VCF_CLEAN" "$VCF1"
 
-  # ✅ WICE-compatible indexing (replaces tabix)
+  # ? WICE-compatible indexing (replaces tabix)
   bcftools index -t "$VCF_CLEAN"
 fi
 
@@ -75,7 +75,7 @@ echo "[DEBUG] Phenotype header:"
 head -n 1 "$PHENO_FILE"
 
 #########################
-# 1) CONVERT VCF → PLINK
+# 1) CONVERT VCF ? PLINK
 #########################
 if [ ! -f merged_base.bed ]; then
   echo "[INFO] Converting VCF to PLINK..."
@@ -207,7 +207,6 @@ echo "[INFO] Computing kinship..."
 gemma \
   -bfile "$QC_PREFIX" \
   -gk 1 \
-  -n_threads $THREADS \
   -outdir kinship_matrix \
   -o "$QC_PREFIX" \
   > logs/step6_gemma_gk.log 2>&1
@@ -221,7 +220,6 @@ gemma \
   -bfile "$QC_PREFIX" \
   -k "kinship_matrix/${QC_PREFIX}.cXX.txt" \
   -lmm 4 \
-  -n_threads $THREADS \
   -outdir gemma_results \
   -o "gwas_results" \
   > logs/step7_gemma_lmm.log 2>&1
