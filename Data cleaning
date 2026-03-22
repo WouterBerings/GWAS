@@ -1,3 +1,12 @@
+
+#!/bin/bash -l
+#SBATCH --cluster=genius
+#SBATCH --job-name cleaning
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=20
+#SBATCH --time=00:10:00
+#SBATCH -A lp_svbelleghem
+
 bcftools view -h Merged.vcf.gz | \
 awk '
 BEGIN { OFS="\t" }
@@ -11,6 +20,6 @@ BEGIN { OFS="\t" }
 }
 { print }
 ' > new_header.txt
-bcftools reheader -h new_header.txt -o Merged_clean.vcf.gz large.vcf.gz
+bcftools reheader -h new_header.txt -o Merged_clean.vcf.gz
 bcftools index Merged_clean.vcf.gz
 bcftools query -l Merged_clean.vcf.gz | head
