@@ -21,6 +21,6 @@ BEGIN { OFS="\t" }
 }
 { print }
 ' > new_header.txt
-bcftools reheader -h new_header.txt -o Merged_clean.vcf.gz
+bcftools reheader -h new_header.txt -o Merged_clean.vcf.gz Merged.vcf.gz
 bcftools index Merged_clean.vcf.gz
 bcftools query -l Merged_clean.vcf.gz | head
