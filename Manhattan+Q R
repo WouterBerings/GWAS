@@ -1,10 +1,11 @@
 #!/usr/bin/env Rscript
 
 # =======================================================
-# GWAS plotting pipeline
+# Hardened GWAS plotting pipeline
 # Input: GEMMA .assoc.txt file
-# Output: Manhattan plot, QQ plot, genomic inflation (lambda)
+# Output: plots/Manhattan.png, plots/QQplot.png, plots/lambda.txt
 # =======================================================
+
 
 suppressPackageStartupMessages({
   library(data.table)
@@ -12,24 +13,28 @@ suppressPackageStartupMessages({
 })
 
 # -----------------------------
-# User-configurable parameters
+# 2) User parameters
 # -----------------------------
-assoc_file <- "gemma_results/gwas_results.assoc.txt"  # GEMMA output
+assoc_file <- "gemma_results/gemma_results.assoc.txt"  # GEMMA output
 pval_col   <- "p_lrt"                                 # Column with p-values
-manhattan_out <- "manhattan.png"
-qq_out        <- "qqplot.png"
+
+plot_dir <- "plots"
+if(!dir.exists(plot_dir)) dir.create(plot_dir)
+
+manhattan_out <- file.path(plot_dir, "manhattan.png")
+qq_out        <- file.path(plot_dir, "qqplot.png")
+lambda_file   <- file.path(plot_dir, "lambda.txt")
 
 # -----------------------------
-# Load data
+# 3) Load data
 # -----------------------------
 gwas <- fread(assoc_file)
-
 if(!all(c("chr", "ps", pval_col) %in% colnames(gwas))){
   stop("Error: Expected columns 'chr', 'ps', and p-value column not found in file")
 }
 
 # -----------------------------
-# Prepare data for plotting
+# 4) Prepare data for plotting
 # -----------------------------
 gwas_df <- data.frame(
   SNP = paste0(gwas$chr, "_", gwas$ps),
@@ -42,17 +47,16 @@ gwas_df <- data.frame(
 gwas_df <- gwas_df[!is.na(gwas_df$P) & gwas_df$P > 0, ]
 
 # -----------------------------
-# Convert non-numeric chromosomes to numbers
+# 5) Convert non-numeric chromosomes
 # -----------------------------
-# Detect unique chromosomes
-unique_chr <- unique(as.character(gwas_df$CHR))
-# Map: numeric, then X->23, Y->24, MT->25, or scaffolds -> auto numbers
 gwas_df$CHR <- as.character(gwas_df$CHR)
+
+# Standard mappings
 gwas_df$CHR[gwas_df$CHR=="X"] <- 23
 gwas_df$CHR[gwas_df$CHR=="Y"] <- 24
 gwas_df$CHR[gwas_df$CHR %in% c("MT","M")] <- 25
 
-# Any remaining non-numeric (scaffolds) -> assign sequential numbers
+# Any remaining non-numeric scaffolds
 non_numeric <- !grepl("^[0-9]+$", gwas_df$CHR)
 if(any(non_numeric)){
   scaffolds <- unique(gwas_df$CHR[non_numeric])
@@ -60,11 +64,11 @@ if(any(non_numeric)){
   gwas_df$CHR[non_numeric] <- scaffold_map[gwas_df$CHR[non_numeric]]
 }
 
-# Ensure numeric type
+# Convert to numeric
 gwas_df$CHR <- as.numeric(gwas_df$CHR)
 
 # -----------------------------
-# Manhattan plot
+# 6) Manhattan plot
 # -----------------------------
 png(manhattan_out, width=1200, height=600)
 manhattan(
@@ -75,18 +79,21 @@ manhattan(
   genomewideline = -log10(5e-8)
 )
 dev.off()
+cat("Manhattan plot saved to:", manhattan_out, "\n")
 
 # -----------------------------
-# QQ plot
+# 7) QQ plot
 # -----------------------------
 png(qq_out, width=600, height=600)
 qq(gwas_df$P, main="QQ Plot of GWAS P-values")
 dev.off()
+cat("QQ plot saved to:", qq_out, "\n")
 
 # -----------------------------
-# Genomic inflation (lambda)
+# 8) Genomic inflation (lambda)
 # -----------------------------
 chisq <- qchisq(1 - gwas_df$P, df = 1)
 lambda <- median(chisq) / qchisq(0.5, 1)
 cat("Genomic inflation factor (lambda):", lambda, "\n")
-write(lambda, file="lambda.txt")
+write(lambda, file=lambda_file)
+cat("Lambda written to:", lambda_file, "\n")
