@@ -1,0 +1,16 @@
+#!/bin/bash -l
+#SBATCH --job-name=GWAS_plots
+#SBATCH --output=GWAS_plots.%j.out
+#SBATCH --error=GWAS_plots.%j.err
+#SBATCH --time=01:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --mem=8G
+#SBATCH -p batch
+
+# Load R module
+module purge
+module load R/4.3.2
+
+# Run R script
+Rscript GWAS_plots.R
