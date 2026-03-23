@@ -7,10 +7,18 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=8G
 #SBATCH -p batch
+#SBATCH -A lp_svbelleghem
 
 # Load R module
 module purge
 module load R/4.3.2
 
-# Run R script
+# Create environment
+conda create -n r_gwas r-base=4.3 r-data.table r-qqman r-mass -y
+
+# Activate in SLURM
+source /data/leuven/385/vsc38531/miniconda3
+conda activate r_gwas
+
+# Then run:
 Rscript GWAS_plots.R
